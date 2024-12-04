@@ -50,13 +50,16 @@ global client_socket
 
 def initialize():
     # Initialize the socket communication with MRS
-    host = '192.168.1.2'  # Replace with Computer 2's IP address
+    host = '192.168.2.66'  # Replace with Computer 2's IP address
     port = 5000
 
     # Create socket
     global client_socket
+    print("Trying to connect to MRS")
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("Socket made")
     client_socket.connect((host, port))
+    print("Socket connected!")
 
 def interface_MRS_with_ROS():
 
@@ -79,16 +82,6 @@ def interface_MRS_with_ROS():
     # Send: image, EKF position & attitude estimates.
     # Receive: estimated position, orientation, and bounding box centre
 
-
-if __name__ == '__main__':
-    initialize()
-    received_dock_cam_image()
-    try:
-        interface_MRS_with_ROS()
-    except rospy.ROSInterruptException:
-        client_socket.close()  # Close connection
-        pass
-
 def update_GNC_position(data):
     # We just got a new GNC position update, hold onto it so when we receive a dock-cam image we can send the most up-to-date positioning as well
     global gnc_position
@@ -101,7 +94,7 @@ def update_GNC_attitude(data):
 
 def received_dock_cam_image(data):
     # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
-    dock_cam_image = data.data
+    #dock_cam_image = data.data
 
 
     # Blocking wait for the results
@@ -114,6 +107,7 @@ def received_dock_cam_image(data):
     serialized_data = pickle.dumps(data)  # Serialize the data
 
     # Send data to the server
+    global client_socket
     client_socket.sendall(serialized_data)
 
     # Wait for response
@@ -140,4 +134,10 @@ def listener():
     rospy.spin()
 
 if __name__ == '__main__':
-    listener()
+    initialize()
+    received_dock_cam_image(0)
+    try:
+        interface_MRS_with_ROS()
+    except rospy.ROSInterruptException:
+        client_socket.close()  # Close connection
+        pass
