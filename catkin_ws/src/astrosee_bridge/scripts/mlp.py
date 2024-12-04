@@ -94,7 +94,7 @@ def update_GNC_attitude(data):
 
 def received_dock_cam_image(data):
     # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
-    #dock_cam_image = data.data
+    dock_cam_image = data.data
 
 
     # Blocking wait for the results
@@ -103,7 +103,9 @@ def received_dock_cam_image(data):
     vector1 = [1, 2, 3]
     vector2 = [4, 5, 6]
 
-    data = {'image': image, 'vector1': vector1, 'vector2': vector2}
+    global gnc_position
+    global gnc_attitude
+    data = {'dock_cam_image': dock_cam_image, 'ekf_position': gnc_position, 'ekf_attitude': gnc_attitude}
     serialized_data = pickle.dumps(data)  # Serialize the data
 
     # Send data to the server
@@ -119,19 +121,6 @@ def received_dock_cam_image(data):
     # Publish results back to ROS
 
 
-def listener():
-
-    # In ROS, nodes are uniquely named. If two nodes with the same
-    # name are launched, the previous one is kicked off. The
-    # anonymous=True flag means that rospy will choose a unique
-    # name for our 'listener' node so that multiple listeners can
-    # run simultaneously.
-    rospy.init_node('listener', anonymous=True)
-
-    rospy.Subscriber('chatter', String, callback)
-
-    # spin() simply keeps python from exiting until this node is stopped
-    rospy.spin()
 
 if __name__ == '__main__':
     initialize()
@@ -139,5 +128,7 @@ if __name__ == '__main__':
     try:
         interface_MRS_with_ROS()
     except rospy.ROSInterruptException:
+        print("Closing socket")
         client_socket.close()  # Close connection
+        print("Socket closed, ending")
         pass

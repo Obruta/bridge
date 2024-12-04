@@ -22,9 +22,15 @@ def server():
 
     print("Received data:", received)
     # Unpack received data
-    image = received['image']
-    vector1 = received['vector1']
-    vector2 = received['vector2']
+    dock_cam_image = received['dock_cam_image']
+    ekf_position = received['ekf_position']
+    ekf_attitude = received['ekf_attitude']
+
+    # Run computer vision on the image, using ekf_position and ekf_attitude to help with modernposit
+    # Outputs are
+    cv_rel_position
+    cv_rel_attitude
+    cv_bb_centre
 
     # Perform processing (placeholder)
     vector3 = [x + 1 for x in vector1]  # Example operation
@@ -32,7 +38,7 @@ def server():
     vector5 = [len(image)]  # Example operation
 
     # Send the response
-    response = {'vector3': vector3, 'vector4': vector4, 'vector5': vector5}
+    response = {'cv_rel_position': cv_rel_position, 'cv_rel_attitude': cv_rel_attitude, 'cv_bb_centre': cv_bb_centre}
     conn.sendall(pickle.dumps(response))
 
     conn.close()  # Close connection
