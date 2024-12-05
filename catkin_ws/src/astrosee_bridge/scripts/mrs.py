@@ -16,30 +16,33 @@ def server():
     conn, addr = server_socket.accept()  # Wait for a client connection
     print(f"Connected by {addr}")
 
-    # Receive data from the client
-    data = conn.recv(4096)  # Receive up to 4096 bytes
-    received = pickle.loads(data)  # Deserialize the data
+    while True:
+        # Receive data from the client
+        data = conn.recv(4096)  # Receive up to 4096 bytes
+        received = pickle.loads(data)  # Deserialize the data
 
-    print("Received data:", received)
-    # Unpack received data
-    dock_cam_image = received['dock_cam_image']
-    ekf_position = received['ekf_position']
-    ekf_attitude = received['ekf_attitude']
+        print("Received data:", received)
+        # Unpack received data
+        dock_cam_image = received['dock_cam_image']
+        ekf_position = received['ekf_position']
+        ekf_attitude = received['ekf_attitude']
 
-    # Run computer vision on the image, using ekf_position and ekf_attitude to help with modernposit
-    # Outputs are
-    cv_rel_position
-    cv_rel_attitude
-    cv_bb_centre
+        # Run computer vision on the image, using ekf_position and ekf_attitude to help with modernposit
 
-    # Perform processing (placeholder)
-    vector3 = [x + 1 for x in vector1]  # Example operation
-    vector4 = [y * 2 for y in vector2]  # Example operation
-    vector5 = [len(image)]  # Example operation
 
-    # Send the response
-    response = {'cv_rel_position': cv_rel_position, 'cv_rel_attitude': cv_rel_attitude, 'cv_bb_centre': cv_bb_centre}
-    conn.sendall(pickle.dumps(response))
+        ##############################
+        ### Do computer vision here###
+        ##############################
+
+
+        # Sample Outputs
+        cv_rel_position = np.array([0.,1.,2.])
+        cv_rel_attitude = np.array([0.,0.,0.,1.])
+        cv_bb_centre = np.array([110,240])
+
+        # Send the response
+        response = {'cv_rel_position': cv_rel_position, 'cv_rel_attitude': cv_rel_attitude, 'cv_bb_centre': cv_bb_centre}
+        conn.sendall(pickle.dumps(response))
 
     conn.close()  # Close connection
 
