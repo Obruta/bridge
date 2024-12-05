@@ -118,9 +118,15 @@ def received_dock_cam_image(data):
 
     print("Response from server:", received)
 
+    # Unpack received data
+    cv_rel_position = received['cv_rel_position']
+    cv_rel_attitude = received['cv_rel_attitude']
+    cv_bb_centre = received['cv_bb_centre']
+
     # Publish results back to ROS
-
-
+    publish_cv_position.publish(cv_rel_position)
+    publish_cv_orientation.publish(cv_rel_attitude)
+    publish_cv_bb_centre.publish(cv_bb_centre)
 
 if __name__ == '__main__':
     initialize()
