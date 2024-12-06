@@ -50,7 +50,7 @@ global client_socket
 
 def initialize():
     # Initialize the socket communication with MRS
-    host = '192.168.2.66'  # Replace with Computer 2's IP address
+    host = '192.168.2.62'  # Replace with Computer 2's IP address
     port = 5000
 
     # Create socket
@@ -73,7 +73,7 @@ def interface_MRS_with_ROS():
     # Receive EKF results & dock-cam images
     rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped, update_GNC_position) # EKF position estimate from GNC
     rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped, update_GNC_attitude) # EKF attitude estimate from GNC
-    rospy.Subscriber('hw/cam_dock', Image, received_dock_cam_image) # Dock-cam image
+    rospy.Subscriber('hw/cam_dock', Image, received_dock_cam_image, callback_args = (publish_cv_position, publish_cv_orientation, publish_cv_bb_centre)) # Dock-cam image
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
@@ -92,19 +92,19 @@ def update_GNC_attitude(data):
     global gnc_attitude
     gnc_attitude = data.data
 
-def received_dock_cam_image(data):
+def received_dock_cam_image(data, publish_cv_position, publish_cv_orientation, publish_cv_bb_centre):
     # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
-    dock_cam_image = data.data
-
+    #dock_cam_image = data.data
+    global gnc_position
+    global gnc_attitude
 
     # Blocking wait for the results
     # Prepare data to send
-    image = [255] * (28 * 28)  # Example image as a flat array
-    vector1 = [1, 2, 3]
-    vector2 = [4, 5, 6]
+    dock_cam_image = [255] * (28 * 28)  # Example image as a flat array
+    gnc_position = [1, 2, 3]
+    gnc_attitude = [4, 5, 6, 7]
 
-    global gnc_position
-    global gnc_attitude
+
     data = {'dock_cam_image': dock_cam_image, 'ekf_position': gnc_position, 'ekf_attitude': gnc_attitude}
     serialized_data = pickle.dumps(data)  # Serialize the data
 
@@ -114,6 +114,7 @@ def received_dock_cam_image(data):
 
     # Wait for response
     response = client_socket.recv(4096)  # Receive up to 4096 bytes
+    print(response)
     received = pickle.loads(response)  # Deserialize the response
 
     print("Response from server:", received)

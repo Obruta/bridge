@@ -2,6 +2,7 @@
 
 import socket
 import pickle
+import numpy as np
 
 def server():
     host = '0.0.0.0'  # Bind to all interfaces
@@ -15,6 +16,7 @@ def server():
     print(f"Server listening on {host}:{port}...")
     conn, addr = server_socket.accept()  # Wait for a client connection
     print(f"Connected by {addr}")
+
 
     while True:
         # Receive data from the client
@@ -41,10 +43,13 @@ def server():
         cv_bb_centre = np.array([110,240])
 
         # Send the response
+        print("Sending response")
         response = {'cv_rel_position': cv_rel_position, 'cv_rel_attitude': cv_rel_attitude, 'cv_bb_centre': cv_bb_centre}
         conn.sendall(pickle.dumps(response))
+        print("response sent!")
 
-    conn.close()  # Close connection
+    #conn.close()  # Close connection
 
 if __name__ == '__main__':
     server()
+
