@@ -42,7 +42,7 @@ import rospy
 from std_msgs.msg import String
 from geometry_msgs.msg import Vector3Stamped
 from geometry_msgs.msg import QuaternionStamped
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import Image
 
 global gnc_position
 global gnc_attitude
@@ -73,7 +73,7 @@ def interface_MRS_with_ROS():
     # Receive EKF results & dock-cam images
     rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped, update_GNC_position) # EKF position estimate from GNC
     rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped, update_GNC_attitude) # EKF attitude estimate from GNC
-    rospy.Subscriber('mgt/img_sampler/dock_cam/image_record', CompressedImage, received_dock_cam_image) # Dock-cam image
+    rospy.Subscriber('hw/cam_dock', Image, received_dock_cam_image) # Dock-cam image
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
