@@ -37,6 +37,10 @@
 ## to the 'chatter' topic
 import socket
 import pickle
+import argparse
+import os
+from PIL import Image as PIL_image
+import numpy as np
 
 import rospy
 from std_msgs.msg import String
@@ -122,21 +126,45 @@ def received_dock_cam_image(data, publish_cv_position, publish_cv_orientation, p
     publish_cv_orientation.publish(cv_rel_attitude)
     publish_cv_bb_centre.publish(cv_bb_centre)
 
+def send_in_chunks(sock, data, chunk_size=4096):
+    """
+    Send data in chunks over a socket connection.
+
+    Parameters:
+        sock (socket.socket): The socket object.
+        data (bytes): The serialized data to send.
+        chunk_size (int): The size of each chunk to send.
+    """
+    total_sent = 0
+    while total_sent < len(data):
+        chunk = data[total_sent:total_sent + chunk_size]
+        sock.sendall(chunk)
+        total_sent += len(chunk)
+
 def test_bridge():
     # This function loads in images from disk and sends them across the bridge for processing
     global client_socket
+    folder_path = './src/astrosee_bridge/scripts/sample_images/'
     for filename in os.listdir(folder_path):
         img_path = os.path.join(folder_path, filename)
-        dock_cam_image = Image.open(img_path)
+        dock_cam_image = np.array(PIL_image.open(img_path))
 
+
+
+        # dummy GNC data
+        gnc_position = np.array([0.,0.,2.])
+        gnc_attitude = np.array([0.,0.,0.,1.])
         data = {'dock_cam_image': dock_cam_image, 'ekf_position': gnc_position, 'ekf_attitude': gnc_attitude}
         serialized_data = pickle.dumps(data)  # Serialize the data
 
+        print(len(serialized_data))
+
         # Send data to MRS
-        client_socket.sendall(serialized_data)
+        send_in_chunks(client_socket, serialized_data)
+        #client_socket.sendall(serialized_data)
 
         # Wait for response
-        response = client_socket.recv(4096)  # Receive up to 4096 bytes
+        response = client_socket.recv(4096*4)  # Receive up to 4096 bytes
         print(response)
         received = pickle.loads(response)  # Deserialize the response
 
