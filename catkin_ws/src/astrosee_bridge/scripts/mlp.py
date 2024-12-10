@@ -94,16 +94,9 @@ def update_GNC_attitude(data):
 
 def received_dock_cam_image(data, publish_cv_position, publish_cv_orientation, publish_cv_bb_centre):
     # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
-    #dock_cam_image = data.data
+    dock_cam_image = data.data
     global gnc_position
     global gnc_attitude
-
-    # Blocking wait for the results
-    # Prepare data to send
-    dock_cam_image = [255] * (28 * 28)  # Example image as a flat array
-    gnc_position = [1, 2, 3]
-    gnc_attitude = [4, 5, 6, 7]
-
 
     data = {'dock_cam_image': dock_cam_image, 'ekf_position': gnc_position, 'ekf_attitude': gnc_attitude}
     serialized_data = pickle.dumps(data)  # Serialize the data
@@ -129,11 +122,42 @@ def received_dock_cam_image(data, publish_cv_position, publish_cv_orientation, p
     publish_cv_orientation.publish(cv_rel_attitude)
     publish_cv_bb_centre.publish(cv_bb_centre)
 
+def test_bridge():
+    # This function loads in images from disk and sends them across the bridge for processing
+    global client_socket
+    for filename in os.listdir(folder_path):
+        img_path = os.path.join(folder_path, filename)
+        dock_cam_image = Image.open(img_path)
+
+        data = {'dock_cam_image': dock_cam_image, 'ekf_position': gnc_position, 'ekf_attitude': gnc_attitude}
+        serialized_data = pickle.dumps(data)  # Serialize the data
+
+        # Send data to MRS
+        client_socket.sendall(serialized_data)
+
+        # Wait for response
+        response = client_socket.recv(4096)  # Receive up to 4096 bytes
+        print(response)
+        received = pickle.loads(response)  # Deserialize the response
+
+        print("Response from server:", received)
+
+    print("All images processed!")
+
+
 if __name__ == '__main__':
     initialize()
-    received_dock_cam_image(0)
+
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--offline", action="store_true")
+    opts = parser.parse_args()
+
     try:
-        interface_MRS_with_ROS()
+        if opts.offline:
+            test_bridge()
+        else:
+            interface_MRS_with_ROS()
     except rospy.ROSInterruptException:
         print("Closing socket")
         client_socket.close()  # Close connection
