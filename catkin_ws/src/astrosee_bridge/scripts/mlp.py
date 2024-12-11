@@ -41,6 +41,7 @@ import argparse
 import os
 from PIL import Image as PIL_image
 import numpy as np
+import struct
 
 import rospy
 from std_msgs.msg import String
@@ -107,7 +108,7 @@ def received_dock_cam_image(data, publish_cv_position, publish_cv_orientation, p
 
     # Send data to the server
     global client_socket
-    client_socket.sendall(serialized_data)
+    send_in_chunks(client_socket, serialized_data)
 
     # Wait for response
     response = client_socket.recv(4096)  # Receive up to 4096 bytes
@@ -126,18 +127,26 @@ def received_dock_cam_image(data, publish_cv_position, publish_cv_orientation, p
     publish_cv_orientation.publish(cv_rel_attitude)
     publish_cv_bb_centre.publish(cv_bb_centre)
 
-def send_in_chunks(sock, data, chunk_size=4096):
+def send_in_chunks(sock, serialized_data, chunk_size=4096):
     """
     Send data in chunks over a socket connection.
 
     Parameters:
         sock (socket.socket): The socket object.
         data (bytes): The serialized data to send.
-        chunk_size (int): The size of each chunk to send.
-    """
+        chunk_size (int): The size of each chunk to send.    """
+
+    data_size = len(serialized_data)
+
+    # Send the size of the data as a fixed-size header (4 bytes for size)
+    sock.sendall(struct.pack("!I", data_size))
+
+    print("Sending data size header: ", data_size)
+
+    # Send the serialized data in chunks
     total_sent = 0
-    while total_sent < len(data):
-        chunk = data[total_sent:total_sent + chunk_size]
+    while total_sent < data_size:
+        chunk = serialized_data[total_sent:total_sent + chunk_size]
         sock.sendall(chunk)
         total_sent += len(chunk)
 
@@ -164,11 +173,14 @@ def test_bridge():
         print(len(serialized_data))
 
         # Send data to MRS
+        print("Sending image")
         send_in_chunks(client_socket, serialized_data)
+        print("Sent!")
         #client_socket.sendall(serialized_data)
 
         # Wait for response
-        response = client_socket.recv(4096)  # Receive up to 4096 bytes
+        print("Receiving response")
+        response = client_socket.recv(4096*4)  # Receive up to 4096 bytes
         received = pickle.loads(response)  # Deserialize the response
 
         print("Response from server:", received)
