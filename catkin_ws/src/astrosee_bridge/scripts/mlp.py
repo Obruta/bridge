@@ -147,7 +147,11 @@ def test_bridge():
     folder_path = './src/astrosee_bridge/scripts/sample_images/'
     for filename in os.listdir(folder_path):
         img_path = os.path.join(folder_path, filename)
-        dock_cam_image = np.array(PIL_image.open(img_path))
+        dock_cam_image = np.array(PIL_image.open(img_path).convert('L'))
+
+        #dock_cam_image_chw = np.moveaxis(dock_cam_image, -1, 0)
+
+        print("Checking shape: ", dock_cam_image.shape)
 
 
 
@@ -164,8 +168,7 @@ def test_bridge():
         #client_socket.sendall(serialized_data)
 
         # Wait for response
-        response = client_socket.recv(4096*4)  # Receive up to 4096 bytes
-        print(response)
+        response = client_socket.recv(4096)  # Receive up to 4096 bytes
         received = pickle.loads(response)  # Deserialize the response
 
         print("Response from server:", received)
