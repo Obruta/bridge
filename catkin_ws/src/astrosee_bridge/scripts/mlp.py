@@ -39,9 +39,10 @@ import socket
 import pickle
 import argparse
 import os
-from PIL import Image as PIL_image
+#from PIL import Image as PIL_image
 import numpy as np
 import struct
+import cv2
 
 import rospy
 from std_msgs.msg import String
@@ -156,7 +157,8 @@ def test_bridge():
     folder_path = './src/astrosee_bridge/scripts/sample_images/'
     for filename in os.listdir(folder_path):
         img_path = os.path.join(folder_path, filename)
-        dock_cam_image = np.array(PIL_image.open(img_path).convert('L'))
+        #dock_cam_image = np.array(PIL_image.open(img_path).convert('L'))
+        dock_cam_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
         #dock_cam_image_chw = np.moveaxis(dock_cam_image, -1, 0)
 
