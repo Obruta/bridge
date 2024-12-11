@@ -67,27 +67,6 @@ def initialize():
     client_socket.connect((host, port))
     print("Socket connected!")
 
-def interface_MRS_with_ROS():
-
-    # Write CV results to these topics for the GNC
-    publish_cv_position    = rospy.Publisher('cv/rel_position', Vector3Stamped, queue_size=1)
-    publish_cv_orientation = rospy.Publisher('cv/rel_quaternion', QuaternionStamped, queue_size=1)
-    publish_cv_bb_centre = rospy.Publisher('cv/bb_centre', String, queue_size=1)
-
-    rospy.init_node('listener', anonymous=True)
-
-    # Receive EKF results & dock-cam images
-    rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped, update_GNC_position) # EKF position estimate from GNC
-    rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped, update_GNC_attitude) # EKF attitude estimate from GNC
-    rospy.Subscriber('hw/cam_dock', Image, received_dock_cam_image, callback_args = (publish_cv_position, publish_cv_orientation, publish_cv_bb_centre)) # Dock-cam image
-
-    # spin() simply keeps python from exiting until this node is stopped
-    rospy.spin()
-
-    # Start up communication with MRS hardware
-    # Send: image, EKF position & attitude estimates.
-    # Receive: estimated position, orientation, and bounding box centre
-
 def update_GNC_position(data):
     # We just got a new GNC position update, hold onto it so when we receive a dock-cam image we can send the most up-to-date positioning as well
     global gnc_position
@@ -98,12 +77,11 @@ def update_GNC_attitude(data):
     global gnc_attitude
     gnc_attitude = data.data
 
-def received_dock_cam_image(data, publish_cv_position, publish_cv_orientation, publish_cv_bb_centre):
+def received_dock_cam_image(data):
     # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
     dock_cam_image = data.data
     global gnc_position
     global gnc_attitude
-
     data = {'dock_cam_image': dock_cam_image, 'ekf_position': gnc_position, 'ekf_attitude': gnc_attitude}
     serialized_data = pickle.dumps(data)  # Serialize the data
 
@@ -202,7 +180,26 @@ if __name__ == '__main__':
         if opts.offline:
             test_bridge()
         else:
-            interface_MRS_with_ROS()
+            # Start up communication with MRS hardware
+            # Send: image, EKF position & attitude estimates.
+            # Receive: estimated position, orientation, and bounding box centre
+
+            # Getting topics to write CV results to
+            publish_cv_position = rospy.Publisher('cv/rel_position', Vector3Stamped, queue_size=1)
+            publish_cv_orientation = rospy.Publisher('cv/rel_quaternion', QuaternionStamped, queue_size=1)
+            publish_cv_bb_centre = rospy.Publisher('cv/bb_centre', String, queue_size=1)
+
+            rospy.init_node('listener', anonymous=True)
+
+            # Subscribe for EKF results & dock-cam images
+            rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped,
+                             update_GNC_position)  # EKF position estimate from GNC
+            rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped,
+                             update_GNC_attitude)  # EKF attitude estimate from GNC
+            rospy.Subscriber('hw/cam_dock', Image, received_dock_cam_image)  # Dock-cam image
+
+            # spin() simply keeps python from exiting until this node is stopped
+            rospy.spin()
     except rospy.ROSInterruptException:
         print("Closing socket")
         client_socket.close()  # Close connection
