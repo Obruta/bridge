@@ -22,7 +22,7 @@ from geometry_msgs.msg import QuaternionStamped, Quaternion
 from sensor_msgs.msg import Image
 
 class Bridge:
-    def __init__(self):
+    def __init__(self, connect_to_ST):
         # Initialize the socket communication with ST
         self.st_host = '192.168.2.19'  # Replace with Computer 2's IP address
         self.st_port = 5001
@@ -37,10 +37,11 @@ class Bridge:
 
         self.gnc_position = np.array([0.,0.,0.])
         self.gnc_attitude = np.array([0.,0.,0.,1.])
-        self.dock_cam_image = None
+        self.camera0 = None
 
         # Establish sockets
-        self.connect_socket_to_st()
+        if connect_to_ST:
+            self.connect_socket_to_st()
         self.connect_socket_to_jet()
 
         #self.cv_bridge = CvBridge()
@@ -113,7 +114,7 @@ class Bridge:
                 # Unpack received data
                 camera0_image = received_data_from_st['camera0']
                 #cv2.imshow("Captured Image from ST", camera0_image)
-                cv2.imwrite('camera0_image' + str(image_number) + '.jpg', camera0_image)
+                cv2.imwrite('ST_images/camera0_image' + str(image_number) + '.jpg', camera0_image)
 
                 # I've got the image from Space Teams without any black bars!!
                 # Now send the image to the Jetson!
@@ -192,20 +193,20 @@ class Bridge:
     def test_bridge_to_jetson(self):
 
         # This function loads in images from disk and sends them across the bridge for processing
-        folder_path = '/data/sample_images/'
+        folder_path = 'sample_images/'
         for filename in os.listdir(folder_path):
             img_path = os.path.join(folder_path, filename)
-            #dock_cam_image = np.array(PIL_image.open(img_path).convert('L'))
-            self.dock_cam_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+            #self.camera0 = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+            self.camera0 = cv2.imread(img_path)
 
-            #dock_cam_image_chw = np.moveaxis(dock_cam_image, -1, 0)
+            #camera0_chw = np.moveaxis(camera0, -1, 0)
 
-            print("Checking shape: ", self.dock_cam_image.shape)
+            print("Checking shape: ", self.camera0.shape)
 
             # dummy GNC data
             self.gnc_position = np.array([0.,0.,2.])
             self.gnc_attitude = np.array([0.,0.,0.,1.])
-            data = {'dock_cam_image': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
+            data = {'camera0': self.camera0, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
             serialized_data = pickle.dumps(data)  # Serialize the data
 
             print(len(serialized_data))
@@ -217,11 +218,11 @@ class Bridge:
             #client_socket.sendall(serialized_data)
 
             # Wait for response
-            print("Receiving response")
-            response = self.client_socket.recv(4096*4)  # Receive up to 4096 bytes
+            response = self.jet_socket.recv(4096)  # Receive up to 4096 bytes
+            # print(response)
             received = pickle.loads(response)  # Deserialize the response
 
-            print("Response from server:", received)
+            print("Response from Jet:", received)
 
         print("All images processed!")
 
@@ -295,12 +296,13 @@ if __name__ == '__main__':
     parser.add_argument("--offline", action="store_true")
     opts = parser.parse_args()
 
-    bridge = Bridge()
-
     try:
         if opts.offline:
+            bridge = Bridge(False)
             bridge.test_bridge_to_jetson()
         else:
+            bridge = Bridge(True)
             bridge.full_bridge_mode()
     except rospy.ROSInterruptException:
-        bridge.close()
+        bridge.close_st_socket()
+        bridge.close_jet_socket()
