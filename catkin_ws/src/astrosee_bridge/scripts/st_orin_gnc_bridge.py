@@ -22,7 +22,11 @@ from geometry_msgs.msg import QuaternionStamped, Quaternion
 from sensor_msgs.msg import Image
 
 class Bridge:
-    def __init__(self, connect_to_ST):
+    def __init__(self, connect_to_ST, quiet_mode):
+
+        # Whether to decrease the amount of verbosity
+        self.quiet_mode = quiet_mode
+
         # Initialize the socket communication with ST
         self.st_host = '192.168.2.19'  # Replace with Computer 2's IP address
         self.st_port = 5001
@@ -79,7 +83,8 @@ class Bridge:
     def receive_in_chunks(self):
         # Receive data from Space Teams
         chunk_size = 4096
-        print("Trying to receive image from ST...")
+        if not self.quiet_mode:
+            print("Trying to receive image from ST...")
         # Receive the 4-byte header containing the data size
         header = self.st_socket.recv(4)
         if len(header) < 4:
@@ -99,7 +104,8 @@ class Bridge:
 
         # Deserialize the data
         received = pickle.loads(data)
-        print("Image received!")
+        if not self.quiet_mode:
+            print("Image received!")
         return received
 
     def full_bridge_mode(self):
@@ -108,7 +114,8 @@ class Bridge:
         image_number = 0
         while True:
             try:
-                print("Receiving image")
+                if not self.quiet_mode:
+                    print("Receiving image")
                 received_data_from_st = self.receive_in_chunks()
                 #print("Received data:", received_data_from_st)
                 # Unpack received data
@@ -122,16 +129,19 @@ class Bridge:
                 serialized_data = pickle.dumps(data)  # Serialize the data
 
                 # Send data to the bridge
-                print("Sending image to Jet in chunks!")
+                if not self.quiet_mode:
+                    print("Sending image to Jet in chunks!")
                 self.send_in_chunks(serialized_data)
-                print("Image sent to Jet!")
+                if not self.quiet_mode:
+                    print("Image sent to Jet!")
 
                 # Wait for response
                 response = self.jet_socket.recv(4096)  # Receive up to 4096 bytes
                 #print(response)
                 received = pickle.loads(response)  # Deserialize the response
-
-                print("Response from Jet:", received)
+                rel_position = received['cv_rel_position']
+                rel_quaternion = received['cv_rel_attitude']
+                print("Relative Position: [%.2f, %.2f, %.2f] m; Relative Attitude: [%.4f, %.4f, %.4f, %.4f]" %(rel_position[0], rel_position[1], rel_position[2], rel_quaternion[0], rel_quaternion[1], rel_quaternion[2], rel_quaternion[3]))
 
                 # Unpack received data
                 cv_rel_position = received['cv_rel_position']
@@ -294,14 +304,15 @@ if __name__ == '__main__':
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument("--quiet", action="store_true")
     opts = parser.parse_args()
 
     try:
         if opts.offline:
-            bridge = Bridge(False)
+            bridge = Bridge(False, opts.quiet)
             bridge.test_bridge_to_jetson()
         else:
-            bridge = Bridge(True)
+            bridge = Bridge(True, opts.quiet)
             bridge.full_bridge_mode()
     except rospy.ROSInterruptException:
         bridge.close_st_socket()
