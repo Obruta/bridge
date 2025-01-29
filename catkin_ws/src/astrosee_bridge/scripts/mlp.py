@@ -19,7 +19,7 @@ from sensor_msgs.msg import Image
 class Bridge:
     def __init__(self):
         # Initialize the socket communication with MRS
-        self.host = '10.42.x.x'  # Replace with Computer 2's IP address
+        self.host = '192.168.x.x'  # Replace with Computer 2's IP address
         self.port = 5000
 
         self.publish_cv_position = None
@@ -42,9 +42,10 @@ class Bridge:
 
     def test_bridge(self):
         # This function loads in images from disk and sends them across the bridge for processing
-        folder_path = '/data/sample_images/'
+        folder_path = 'sample_images/'
         for filename in os.listdir(folder_path):
             img_path = os.path.join(folder_path, filename)
+            #print(img_path)
             #dock_cam_image = np.array(PIL_image.open(img_path).convert('L'))
             self.dock_cam_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
@@ -55,7 +56,7 @@ class Bridge:
             # dummy GNC data
             self.gnc_position = np.array([0.,0.,2.])
             self.gnc_attitude = np.array([0.,0.,0.,1.])
-            data = {'dock_cam_image': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
+            data = {'camera0': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
             serialized_data = pickle.dumps(data)  # Serialize the data
 
             print(len(serialized_data))
