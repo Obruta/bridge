@@ -33,12 +33,19 @@ class Bridge:
         self.cv_bridge = CvBridge()
 
         # Create socket
-        print("Trying to connect to MRS")
+        print("Making socket for MRS")
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print("Socket made")
-
-        self.client_socket.connect((self.host, self.port))
-        print("Socket connected!")
+        while True:
+            try:
+                print("Trying to connect to MRS...")
+                self.client_socket.connect((self.host, self.port))
+                print("Socket connected!")
+                break
+            except socket.timeout as e:
+                print("Connection failed, trying again")
+                time.sleep(1.0)
+                continue
 
     def test_bridge(self):
         # This function loads in images from disk and sends them across the bridge for processing
@@ -100,11 +107,11 @@ class Bridge:
 
     def update_GNC_position(self, data):
         # We just got a new GNC position update, hold onto it so when we receive a dock-cam image we can send the most up-to-date positioning as well
-        self.gnc_position = data.data
+        self.gnc_position = np.array([data.vector.x, data.vector.y, data.vector.z]
 
     def update_GNC_attitude(self, data):
         # We just got a new GNC attitude update, hold onto it so when we receive a dock-cam image we can send the most up-to-date attitude as well
-        self.gnc_attitude = data.data
+        self.gnc_attitude = np.array([data.quaternion.x,data.quaternion.y,data.quaternion.z,data.quaternion.w])
 
     def received_dock_cam_image(self, data):
         # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
@@ -118,7 +125,6 @@ class Bridge:
 
         # Wait for response
         response = self.client_socket.recv(4096)  # Receive up to 4096 bytes
-        print(response)
         received = pickle.loads(response)  # Deserialize the response
 
         print("Response from server:", received)
