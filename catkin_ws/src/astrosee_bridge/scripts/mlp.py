@@ -134,7 +134,8 @@ class Bridge:
         cv_rel_attitude = received['cv_rel_attitude']
         cv_bb_centre = received['cv_bb_centre']
 
-        time = rospy.Time.now()
+        #time = rospy.Time.now()
+        time = data.header.stamp # taking the timestamp from the dock-cam image when it was created
 
         position = Vector3Stamped()
         position.header.frame_id = "world"
