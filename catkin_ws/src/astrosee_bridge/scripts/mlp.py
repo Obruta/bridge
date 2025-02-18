@@ -7,6 +7,7 @@ import os
 import numpy as np
 import struct
 import cv2
+import time
 
 import rospy
 
@@ -107,7 +108,7 @@ class Bridge:
 
     def update_GNC_position(self, data):
         # We just got a new GNC position update, hold onto it so when we receive a dock-cam image we can send the most up-to-date positioning as well
-        self.gnc_position = np.array([data.vector.x, data.vector.y, data.vector.z]
+        self.gnc_position = np.array([data.vector.x, data.vector.y, data.vector.z])
 
     def update_GNC_attitude(self, data):
         # We just got a new GNC attitude update, hold onto it so when we receive a dock-cam image we can send the most up-to-date attitude as well
@@ -117,7 +118,11 @@ class Bridge:
         # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
         self.dock_cam_image = self.cv_bridge.imgmsg_to_cv2(data, desired_encoding="passthrough")
 
-        data = {'dock_cam_image': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
+        # Get the time from the current image
+        # time = rospy.Time.now()
+        time = data.header.stamp  # taking the timestamp from the dock-cam image when it was created
+
+        data = {'camera0': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
         serialized_data = pickle.dumps(data)  # Serialize the data
 
         # Send data to the server
@@ -133,9 +138,6 @@ class Bridge:
         cv_rel_position = received['cv_rel_position']
         cv_rel_attitude = received['cv_rel_attitude']
         cv_bb_centre = received['cv_bb_centre']
-
-        #time = rospy.Time.now()
-        time = data.header.stamp # taking the timestamp from the dock-cam image when it was created
 
         position = Vector3Stamped()
         position.header.frame_id = "world"
@@ -181,7 +183,7 @@ class Bridge:
             self.client_socket.sendall(chunk)
             total_sent += len(chunk)
 
-    def close():
+    def close(self):
         print("Closing socket")
         self.client_socket.close()  # Close connection
         print("Socket closed, ending")
