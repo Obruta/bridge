@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import socket
 import pickle
@@ -20,7 +20,7 @@ from sensor_msgs.msg import Image
 class Bridge:
     def __init__(self):
         # Initialize the socket communication with MRS
-        self.host = '192.168.x.x'  # Replace with Computer 2's IP address
+        self.host = '192.168.x.x'
         self.port = 5000
 
         self.publish_cv_position = None
@@ -97,10 +97,8 @@ class Bridge:
         rospy.init_node('listener', anonymous=True)
 
         # Subscribe for EKF results & dock-cam images
-        rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped,
-                         self.update_GNC_position)  # EKF position estimate from GNC
-        rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped,
-                         self.update_GNC_attitude)  # EKF attitude estimate from GNC
+        #rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped, self.update_GNC_position)  # EKF position estimate from GNC
+        #rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped,self.update_GNC_attitude)  # EKF attitude estimate from GNC
         rospy.Subscriber('hw/cam_dock', Image, self.received_dock_cam_image, queue_size=1)  # Dock-cam image
 
         # spin() simply keeps python from exiting until this node is stopped
@@ -108,6 +106,9 @@ class Bridge:
 
     def update_GNC_position(self, data):
         # We just got a new GNC position update, hold onto it so when we receive a dock-cam image we can send the most up-to-date positioning as well
+
+        # Some way to slow down here. rospy.rate or something.
+
         self.gnc_position = np.array([data.vector.x, data.vector.y, data.vector.z])
 
     def update_GNC_attitude(self, data):
@@ -121,6 +122,8 @@ class Bridge:
         # Get the time from the current image
         # time = rospy.Time.now()
         time = data.header.stamp  # taking the timestamp from the dock-cam image when it was created
+
+        print("The FIRST difference between the dock-cam images's time and the rospy time is (queue problems, expected small): " (time - rospy.Time.now()))
 
         data = {'camera0': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
         serialized_data = pickle.dumps(data)  # Serialize the data
@@ -159,6 +162,8 @@ class Bridge:
         self.publish_cv_position.publish(position)
         self.publish_cv_orientation.publish(attitude)
         self.publish_cv_bb_centre.publish(bb)
+
+        print("The SECOND difference between the dock-cam images's time and the rospy time is (processing delays, expected 0.5s): "(time - rospy.Time.now()))
 
     def send_in_chunks(self, serialized_data, chunk_size=4096):
         """
