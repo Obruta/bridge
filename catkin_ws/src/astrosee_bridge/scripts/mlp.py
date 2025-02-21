@@ -123,7 +123,7 @@ class Bridge:
         # time = rospy.Time.now()
         time = data.header.stamp  # taking the timestamp from the dock-cam image when it was created
 
-        print("The FIRST difference between the dock-cam images's time and the rospy time is (queue problems, expected small): " (time - rospy.Time.now()))
+        print("The FIRST difference between the dock-cam images's time and the rospy time is (queue problems, expected small): " + str(time - rospy.Time.now()))
 
         data = {'camera0': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
         serialized_data = pickle.dumps(data)  # Serialize the data
@@ -163,7 +163,7 @@ class Bridge:
         self.publish_cv_orientation.publish(attitude)
         self.publish_cv_bb_centre.publish(bb)
 
-        print("The SECOND difference between the dock-cam images's time and the rospy time is (processing delays, expected 0.5s): "(time - rospy.Time.now()))
+        print("The SECOND difference between the dock-cam images's time and the rospy time is (processing delays, expected 0.5s): " + str(time - rospy.Time.now()))
 
     def send_in_chunks(self, serialized_data, chunk_size=4096):
         """
