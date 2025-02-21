@@ -43,8 +43,8 @@ class Bridge:
                 self.client_socket.connect((self.host, self.port))
                 print("Socket connected!")
                 break
-            except socket.timeout as e:
-                print("Connection failed, trying again")
+            except Exception as e:
+                print("Connection failed, reason: " + str(e) + " trying again...")
                 time.sleep(1.0)
                 continue
 
