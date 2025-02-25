@@ -8,6 +8,7 @@ import numpy as np
 import struct
 import cv2
 import time
+import threading
 
 import rospy
 
@@ -30,6 +31,9 @@ class Bridge:
         self.gnc_position = np.array([0.,0.,0.])
         self.gnc_attitude = np.array([0.,0.,0.,1.])
         self.dock_cam_image = None
+
+        self.image = None
+        self.lock = threading.Lock()
 
         self.cv_bridge = CvBridge()
 
@@ -99,10 +103,12 @@ class Bridge:
         # Subscribe for EKF results & dock-cam images
         #rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped, self.update_GNC_position)  # EKF position estimate from GNC
         #rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped,self.update_GNC_attitude)  # EKF attitude estimate from GNC
-        rospy.Subscriber('hw/cam_dock', Image, self.received_dock_cam_image, queue_size=1)  # Dock-cam image
+        rospy.Subscriber('hw/cam_dock', Image, self.image_callback, queue_size=1)  # Dock-cam image
 
-        # spin() simply keeps python from exiting until this node is stopped
-        rospy.spin()
+        rate = rospy.Rate(15)
+        while not rospy.is_shutdown():
+            self.process_image()
+            rate.sleep()
 
     def update_GNC_position(self, data):
         # We just got a new GNC position update, hold onto it so when we receive a dock-cam image we can send the most up-to-date positioning as well
@@ -115,15 +121,17 @@ class Bridge:
         # We just got a new GNC attitude update, hold onto it so when we receive a dock-cam image we can send the most up-to-date attitude as well
         self.gnc_attitude = np.array([data.quaternion.x,data.quaternion.y,data.quaternion.z,data.quaternion.w])
 
-    def received_dock_cam_image(self, data):
-        # We just received a dock-cam image! Send it, and the most up-to-date relative state data, to the MRS payload!
-        self.dock_cam_image = self.cv_bridge.imgmsg_to_cv2(data, desired_encoding="passthrough")
+    def image_callback(self, image):
+        with self.lock:
+            self.image = image
+            #print((self.image.header.stamp - rospy.Time.now()).to_sec()) ~0.1s
 
-        # Get the time from the current image
-        # time = rospy.Time.now()
-        time = data.header.stamp  # taking the timestamp from the dock-cam image when it was created
-
-        print("The FIRST difference between the dock-cam images's time and the rospy time is (queue problems, expected small): " + str(time - rospy.Time.now()))
+    def process_image(self):
+        with self.lock:
+            if self.image is None:
+                return
+            stamp = self.image.header.stamp
+            self.dock_cam_image = self.cv_bridge.imgmsg_to_cv2(self.image, desired_encoding="passthrough")
 
         data = {'camera0': self.dock_cam_image, 'ekf_position': self.gnc_position, 'ekf_attitude': self.gnc_attitude}
         serialized_data = pickle.dumps(data)  # Serialize the data
@@ -144,26 +152,25 @@ class Bridge:
 
         position = Vector3Stamped()
         position.header.frame_id = "world"
-        position.header.stamp = time
+        position.header.stamp = stamp
         position.vector = Vector3(x=cv_rel_position[0], y=cv_rel_position[1], z=cv_rel_position[2])
 
         attitude = QuaternionStamped()
         attitude.header.frame_id = "world"
-        attitude.header.stamp = time
+        attitude.header.stamp = stamp
         attitude.quaternion = Quaternion(cv_rel_attitude[0], cv_rel_attitude[1], cv_rel_attitude[2], cv_rel_attitude[3])
 
         bb = Vector3Stamped()
         bb.header.frame_id = "world"
-        bb.header.stamp = time
+        bb.header.stamp = stamp
         bb.vector = Vector3(x=cv_bb_centre[0], y=cv_bb_centre[1], z=cv_bb_centre[2])
-
 
         # Publish results back to ROS
         self.publish_cv_position.publish(position)
         self.publish_cv_orientation.publish(attitude)
         self.publish_cv_bb_centre.publish(bb)
 
-        print("The SECOND difference between the dock-cam images's time and the rospy time is (processing delays, expected 0.5s): " + str(time - rospy.Time.now()))
+        #print((stamp - rospy.Time.now()).to_sec()) ~0.5s
 
     def send_in_chunks(self, serialized_data, chunk_size=4096):
         """
