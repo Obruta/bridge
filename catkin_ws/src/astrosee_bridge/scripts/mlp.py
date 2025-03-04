@@ -103,9 +103,10 @@ class Bridge:
         # Subscribe for EKF results & dock-cam images
         #rospy.Subscriber('adaptive_gnc/nav/cv/rel_position', Vector3Stamped, self.update_GNC_position)  # EKF position estimate from GNC
         #rospy.Subscriber('attitude_nav/cv/rel_quaternion', QuaternionStamped,self.update_GNC_attitude)  # EKF attitude estimate from GNC
-        rospy.Subscriber('hw/cam_dock', Image, self.image_callback, queue_size=1)  # Dock-cam image
+        # rospy.Subscriber('hw/cam_dock', Image, self.image_callback, queue_size=1)  # Dock-cam image
+        rospy.Subscriber('mgt/img_sampler/dock_cam/image_record', Image, self.image_callback, queue_size=1)  # Dock-cam image, smaller image
 
-        rate = rospy.Rate(15)
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.process_image()
             rate.sleep()
